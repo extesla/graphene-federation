@@ -11,4 +11,4 @@ jobs:
     - name: Build environment
       run: make build.integration-tests
     - name: Run Integration Tests
-      run: make test.integration-tests
+      run: make test.integration
