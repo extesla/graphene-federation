@@ -1,10 +1,11 @@
-from graphene import ObjectType, String, Int, Field, Interface, Mutation
+import graphene
+from graphene import ObjectType, Interface, Mutation
 from graphene_federation import build_schema, key
 
 
 class TextInterface(Interface):
-    id = Int(required=True)
-    body = String(required=True)
+    id = graphene.Int(required=True)
+    body = graphene.String(required=True)
 
 
 @key(fields='id')
@@ -18,8 +19,8 @@ class FunnyText(ObjectType):
 
 @key(fields='id')
 class FileNode(ObjectType):
-    id = Int(required=True)
-    name = String(required=True)
+    id = graphene.Int(required=True)
+    name = graphene.String(required=True)
 
     def __resolve_reference(self, info, **kwargs):
         # todo test raise exception here
@@ -29,9 +30,9 @@ class FileNode(ObjectType):
 @key('id')
 @key('primary_email')
 class User(ObjectType):
-    id = Int(required=True)
-    primary_email = String()
-    age = Int()
+    id = graphene.Int(required=True)
+    primary_email = graphene.String()
+    age = graphene.Int()
 
     def resolve_age(self, info):
         return 17
@@ -48,12 +49,12 @@ class User(ObjectType):
 
 # to test that @key applied only to FileNode, but not to FileNodeAnother
 class FileNodeAnother(ObjectType):
-    id = Int(required=True)
-    name = String(required=True)
+    id = graphene.Int(required=True)
+    name = graphene.String(required=True)
 
 
 class FunnyMutation(Mutation):
-    result = String(required=True)
+    result = graphene.String(required=True)
 
     @classmethod
     def mutate(cls, root, info, **data):
@@ -72,3 +73,8 @@ types = [
 ]
 
 schema = build_schema(mutation=Mutation, types=types)
+
+
+def get_schema():
+    """Return the defined schema."""
+    return schema
