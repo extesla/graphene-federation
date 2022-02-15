@@ -1,21 +1,26 @@
-from graphene import ObjectType, String, Int, List, NonNull, Field, Interface
+import graphene
+from graphene import ObjectType, Interface
 from graphene_federation import build_schema, extend, external
 
 
 class DecoratedText(Interface):
-    color = Int(required=True)
+    color = graphene.Int(required=True)
 
 
 @extend(fields='id')
 class FileNode(ObjectType):
-    id = external(Int(required=True))
+    id = external(
+        graphene.Int(required=True)
+    )
 
 
 @extend(fields='id')
 class FunnyText(ObjectType):
     class Meta:
         interfaces = (DecoratedText,)
-    id = external(Int(required=True))
+    id = external(
+        graphene.Int(required=True)
+    )
 
     def resolve_color(self, info, **kwargs):
         return self.id + 2
@@ -27,7 +32,7 @@ class FunnyTextAnother(ObjectType):
     """
     class Meta:
         interfaces = (DecoratedText,)
-    id = Int(required=True)
+    id = graphene.Int(required=True)
 
     def resolve_color(self, info, **kwargs):
         return self.id + 2
@@ -35,20 +40,20 @@ class FunnyTextAnother(ObjectType):
 
 @extend(fields='primaryEmail')
 class User(ObjectType):
-    primaryEmail = external(String())
+    primaryEmail = external(graphene.String())
 
 
 class Post(ObjectType):
-    id = Int(required=True)
-    title = String(required=True)
-    text = Field(lambda: FunnyText)
-    files = List(NonNull(FileNode))
-    author = Field(lambda: User)
+    id = graphene.Int(required=True)
+    title = graphene.String(required=True)
+    text = graphene.Field(lambda: FunnyText)
+    files = graphene.List(graphene.NonNull(FileNode))
+    author = graphene.Field(lambda: User)
 
 
 class Query(ObjectType):
-    goodbye = String()
-    posts = List(NonNull(Post))
+    goodbye = graphene.String()
+    posts = graphene.List(graphene.NonNull(Post))
 
     def resolve_posts(root, info):
         return [
@@ -66,3 +71,8 @@ class Query(ObjectType):
 
 
 schema = build_schema(query=Query, types=[FunnyTextAnother], auto_camelcase=False)
+
+
+def get_schema():
+    """Return the defined schema."""
+    return schema

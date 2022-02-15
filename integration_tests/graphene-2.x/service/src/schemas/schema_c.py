@@ -1,13 +1,14 @@
-from graphene import ObjectType, String, Int, List, NonNull, Field
+import graphene
+from graphene import ObjectType
 from graphene_federation import build_schema, extend, external, requires, key, provides
 
 
 @extend(fields='id')
 class User(ObjectType):
-    id = external(Int(required=True))
-    primary_email = external(String())
-    uppercase_email = requires(String(), fields='primaryEmail')
-    age = external(Int())
+    id = external(graphene.Int(required=True))
+    primary_email = external(graphene.String())
+    uppercase_email = requires(graphene.String(), fields='primaryEmail')
+    age = external(graphene.Int())
 
     def resolve_uppercase_email(self, info):
         return self.primary_email.upper() if self.primary_email else self.primary_email
@@ -18,9 +19,9 @@ class User(ObjectType):
 
 @key(fields='id')
 class Article(ObjectType):
-    id = Int(required=True)
-    text = String(required=True)
-    author = Field(lambda: User)
+    id = graphene.Int(required=True)
+    text = graphene.String(required=True)
+    author = graphene.Field(lambda: User)
 
     def __resolve_reference(self, info, **kwargs):
         return Article(id=self.id, text=f'text_{self.id}')
@@ -31,17 +32,17 @@ class ArticleThatProvideAuthorAge(ObjectType):
     """
     should not contain other graphene-federation decorators to proper test test-case
     """
-    id = Int(required=True)
-    text = String(required=True)
-    author = provides(Field(User), fields='age')
+    id = graphene.Int(required=True)
+    text = graphene.String(required=True)
+    author = provides(graphene.Field(User), fields='age')
 
     def __resolve_reference(self, info, **kwargs):
         return Article(id=self.id, text=f'text_{self.id}')
 
 
 class Query(ObjectType):
-    articles = List(NonNull(lambda: Article))
-    articles_with_author_age_provide = List(NonNull(lambda: ArticleThatProvideAuthorAge))
+    articles = graphene.List(graphene.NonNull(lambda: Article))
+    articles_with_author_age_provide = graphene.List(graphene.NonNull(lambda: ArticleThatProvideAuthorAge))
 
     def resolve_articles(self, info):
         return [
@@ -55,3 +56,8 @@ class Query(ObjectType):
 
 
 schema = build_schema(Query)
+
+
+def get_schema():
+    """Return the defined schema."""
+    return schema
