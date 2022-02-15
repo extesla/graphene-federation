@@ -1,17 +1,36 @@
 import json
+import pytest
 import requests
 
-TEST_3: bool = True
+SERVICE_A = "service_a"
+SERVICE_B = "service_b"
+SERVICE_C = "service_c"
+SERVICE_D = "service_d"
 
-SERVICE_A = "service_3_a" if TEST_3 else "service_a"
-SERVICE_B = "service_3_b" if TEST_3 else "service_b"
-SERVICE_C = "service_3_c" if TEST_3 else "service_c"
-SERVICE_D = "service_3_d" if TEST_3 else "service_d"
-GRAPHQL_SERVER_PORT = 5003 if TEST_3 else 5000
-GATEWAY_NAME = "federation_3" if TEST_3 else "federation"
-GATEWAY_PORT = 3003 if TEST_3 else 3000
 
-def test_integrate_simple_schema():
+@pytest.fixture
+def federation_gateway_url():
+    url = f"http://federation:3002/graphql/"
+    return url
+
+
+def fetch_sdl(service_name: str):
+    query = {
+        'query': """
+            query {
+                _service {
+                    sdl
+                }
+            }
+        """,
+        'variables': {}
+    }
+    response = requests.post(f'http://{service_name}:5002/graphql/', json=query)
+    assert response.status_code == 200
+    return response.json()['data']['_service']['sdl']
+
+
+def test_integrate_simple_schema(federation_gateway_url):
     query = {
         'query': """
             query {
@@ -20,14 +39,14 @@ def test_integrate_simple_schema():
         """,
         'variables': {}
     }
-    response = requests.post(f'http://{GATEWAY_NAME}federation:{GATEWAY_PORT}/graphql/', json=query)
+    response = requests.post(federation_gateway_url, json=query)
     assert response.status_code == 200
     data = json.loads(response.content)['data']
     assert data['goodbye'] == 'See ya!'
     print("qwerty")
 
 
-def test_external_types():
+def test_external_types(federation_gateway_url):
     query = {
         'query': """
             query {
@@ -60,7 +79,7 @@ def test_external_types():
         'variables': {}
     }
     response = requests.post(
-        f'http://{GATEWAY_NAME}:{GATEWAY_PORT}/graphql/',
+        federation_gateway_url,
         json=query,
     )
     assert response.status_code == 200
@@ -81,21 +100,6 @@ def test_external_types():
         {'id': 1, 'text': 'some text', 'author': {'id': 5, 'primaryEmail': 'name_5@gmail.com'}}]
 
 
-def fetch_sdl(service_name: str):
-    query = {
-        'query': """
-            query {
-                _service {
-                    sdl
-                }
-            }
-        """,
-        'variables': {}
-    }
-    response = requests.post(f'http://{service_name}:{GRAPHQL_SERVER_PORT}/graphql/', json=query)
-    assert response.status_code == 200
-    return response.json()['data']['_service']['sdl']
-
 
 def test_key_decorator_applied_by_exact_match_only():
     sdl = fetch_sdl(SERVICE_B)
@@ -103,7 +107,17 @@ def test_key_decorator_applied_by_exact_match_only():
     assert 'type FileNodeAnother @key(fields: "id")' not in sdl
 
 
-def test_mutation_is_accessible_in_federation():
+def test_avoid_duplication_of_key_decorator():
+    sdl = fetch_sdl(SERVICE_A)
+    assert 'extend type FileNode  @key(fields: \"id\") {' in sdl
+
+
+def test_multiple_key_decorators_apply_multiple_key_annotations():
+    sdl = fetch_sdl(SERVICE_B)
+    assert 'type User @key(fields: "primaryEmail") @key(fields: "id")' in sdl
+
+
+def test_mutation_is_accessible_in_federation(federation_gateway_url):
     # this mutation is created in service_b
     mutation = """
     mutation {
@@ -113,51 +127,14 @@ def test_mutation_is_accessible_in_federation():
     }"""
 
     response = requests.post(
-        f'http://{GATEWAY_NAME}:{GATEWAY_PORT}/graphql/', json={'query': mutation}
+        federation_gateway_url, json={'query': mutation}
     )
     assert response.status_code == 200
     assert 'errors' not in response.json()
     assert response.json()['data']['funnyMutation']['result'] == 'Funny'
 
 
-def test_multiple_key_decorators_apply_multiple_key_annotations():
-    sdl = fetch_sdl(SERVICE_B)
-    assert 'type User @key(fields: "primaryEmail") @key(fields: "id")' in sdl
-
-
-def test_avoid_duplication_of_key_decorator():
-    sdl = fetch_sdl(SERVICE_A)
-    assert 'extend type FileNode  @key(fields: \"id\") {' in sdl
-
-
-def test_requires():
-    query = {
-        'query': """
-            query {
-                articles {
-                    id
-                    text
-                    author {
-                        uppercaseEmail
-                    }
-                }
-            }
-        """,
-        'variables': {}
-    }
-    response = requests.post(
-        f'http://{GATEWAY_NAME}:{GATEWAY_PORT}/graphql/',
-        json=query,
-    )
-    assert response.status_code == 200
-    data = json.loads(response.content)['data']
-    articles = data['articles']
-
-    assert articles == [
-        {'id': 1, 'text': 'some text', 'author': {'uppercaseEmail': 'NAME_5@GMAIL.COM'}}]
-
-
-def test_provides():
+def test_provides(federation_gateway_url):
     """
     articles -> w/o provide (get age value from service b)
     articlesWithAuthorAgeProvide -> w/ provide (get age value from service c)
@@ -186,7 +163,7 @@ def test_provides():
         'variables': {}
     }
     response = requests.post(
-        f'http://{GATEWAY_NAME}:{GATEWAY_PORT}/graphql/',
+        federation_gateway_url,
         json=query,
     )
     assert response.status_code == 200
@@ -199,3 +176,30 @@ def test_provides():
 
     assert articles_with_age_provide == [
         {'id': 1, 'text': 'some text', 'author': {'age': 18}}]
+
+
+def test_requires(federation_gateway_url):
+    query = {
+        'query': """
+            query {
+                articles {
+                    id
+                    text
+                    author {
+                        uppercaseEmail
+                    }
+                }
+            }
+        """,
+        'variables': {}
+    }
+    response = requests.post(
+        federation_gateway_url,
+        json=query,
+    )
+    assert response.status_code == 200
+    data = json.loads(response.content)['data']
+    articles = data['articles']
+
+    assert articles == [
+        {'id': 1, 'text': 'some text', 'author': {'uppercaseEmail': 'NAME_5@GMAIL.COM'}}]

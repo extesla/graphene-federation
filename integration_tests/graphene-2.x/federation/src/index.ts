@@ -1,10 +1,10 @@
 import {ApolloServer} from 'apollo-server'
 import {ApolloGateway} from '@apollo/gateway'
 
-const serviceA_url: string = 'http://service_a:5000/graphql';
-const serviceB_url: string = 'http://service_b:5000/graphql';
-const serviceC_url: string = 'http://service_c:5000/graphql';
-const serviceD_url: string = 'http://service_d:5000/graphql';
+const serviceA_url: string = 'http://service_a:5002/graphql';
+const serviceB_url: string = 'http://service_b:5002/graphql';
+const serviceC_url: string = 'http://service_c:5002/graphql';
+const serviceD_url: string = 'http://service_d:5002/graphql';
 
 const gateway = new ApolloGateway({
     serviceList: [
@@ -20,6 +20,6 @@ const server = new ApolloServer({
     subscriptions: false
 });
 
-server.listen(3000).then(({ url }) => {
+server.listen(3002).then(({ url }) => {
   console.log(`🚀 Server ready at ${url}`);
 });
